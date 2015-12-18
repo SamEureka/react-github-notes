@@ -11,26 +11,25 @@ var Profile = React.createClass({
 	mixins: [ReactFireMixin],
 	getInitialState: function(){
 		return {
-			notes: [],
+			notes: [1,2,3],
 			bio: {},
 			repos: []
 		}
 	},
 	componentDidMount: function(){
 		this.ref = new Firebase('https://sameureka.firebaseio.com/');
-		this.init(this.props.params.username);
+		window.firebase = this.ref;
+		this.init(this.props.params.username)
 	},
 	componentWillReceiveProps: function(nextProps){
 		this.unbind('notes');
 		this.init(nextProps.params.username);
 	},
-
 	componentWillUnmount: function(){
 		this.unbind('notes');
 	},
-
 	init: function(username){
-				var childRef = this.ref.child(username);
+		var childRef = this.ref.child(username);
 		this.bindAsArray(childRef, 'notes');
 
 		helpers.getGithubInfo(username)
@@ -41,9 +40,8 @@ var Profile = React.createClass({
 				})
 			}.bind(this))
 	},
-
 	handleAddNote: function(newNote){
-		this.ref.child(this.props.params.username).child(this.state.notes.length).set(newNote)
+		this.ref.child(this.props.params.username).push(newNote)
 	},
 	render: function(){
 		return (

@@ -24486,7 +24486,7 @@
 		handleSubmit: function handleSubmit() {
 			var username = this.usernameRef.value;
 			this.usernameRef.value = '';
-			this.history.pushState(null, "profile/" + username);
+			this.history.pushState(null, "/profile/" + username);
 		},
 		render: function render() {
 			return React.createElement(
@@ -24559,24 +24559,23 @@
 		mixins: [ReactFireMixin],
 		getInitialState: function getInitialState() {
 			return {
-				notes: [],
+				notes: [1, 2, 3],
 				bio: {},
 				repos: []
 			};
 		},
 		componentDidMount: function componentDidMount() {
 			this.ref = new Firebase('https://sameureka.firebaseio.com/');
+			window.firebase = this.ref;
 			this.init(this.props.params.username);
 		},
 		componentWillReceiveProps: function componentWillReceiveProps(nextProps) {
 			this.unbind('notes');
 			this.init(nextProps.params.username);
 		},
-
 		componentWillUnmount: function componentWillUnmount() {
 			this.unbind('notes');
 		},
-
 		init: function init(username) {
 			var childRef = this.ref.child(username);
 			this.bindAsArray(childRef, 'notes');
@@ -24588,9 +24587,8 @@
 				});
 			}).bind(this));
 		},
-
 		handleAddNote: function handleAddNote(newNote) {
-			this.ref.child(this.props.params.username).child(this.state.notes.length).set(newNote);
+			this.ref.child(this.props.params.username).push(newNote);
 		},
 		render: function render() {
 			return React.createElement(
@@ -24787,8 +24785,8 @@
 		displayName: 'Notes',
 
 		propTypes: {
-			notes: React.PropTypes.array.isRequired,
 			username: React.PropTypes.string.isRequired,
+			notes: React.PropTypes.array.isRequired,
 			addNote: React.PropTypes.func.isRequired
 		},
 		render: function render() {
@@ -25575,8 +25573,9 @@
 	var InterceptorManager = __webpack_require__(235);
 	var isAbsoluteURL = __webpack_require__(236);
 	var combineURLs = __webpack_require__(237);
+	var bind = __webpack_require__(238);
 
-	function Axios (defaultConfig) {
+	function Axios(defaultConfig) {
 	  this.defaultConfig = utils.merge({
 	    headers: {},
 	    timeout: defaults.timeout,
@@ -25590,7 +25589,8 @@
 	  };
 	}
 
-	Axios.prototype.request = function (config) {
+	Axios.prototype.request = function request(config) {
+	  /*eslint no-param-reassign:0*/
 	  // Allow for axios('example/url'[, config]) a la fetch API
 	  if (typeof config === 'string') {
 	    config = utils.merge({
@@ -25611,11 +25611,11 @@
 	  var chain = [dispatchRequest, undefined];
 	  var promise = Promise.resolve(config);
 
-	  this.interceptors.request.forEach(function (interceptor) {
+	  this.interceptors.request.forEach(function unshiftRequestInterceptors(interceptor) {
 	    chain.unshift(interceptor.fulfilled, interceptor.rejected);
 	  });
 
-	  this.interceptors.response.forEach(function (interceptor) {
+	  this.interceptors.response.forEach(function pushResponseInterceptors(interceptor) {
 	    chain.push(interceptor.fulfilled, interceptor.rejected);
 	  });
 
@@ -25630,7 +25630,7 @@
 
 	var axios = module.exports = bind(Axios.prototype.request, defaultInstance);
 
-	axios.create = function (defaultConfig) {
+	axios.create = function create(defaultConfig) {
 	  return new Axios(defaultConfig);
 	};
 
@@ -25638,28 +25638,18 @@
 	axios.defaults = defaults;
 
 	// Expose all/spread
-	axios.all = function (promises) {
+	axios.all = function all(promises) {
 	  return Promise.all(promises);
 	};
-	axios.spread = __webpack_require__(238);
+	axios.spread = __webpack_require__(239);
 
 	// Expose interceptors
 	axios.interceptors = defaultInstance.interceptors;
 
-	// Helpers
-	function bind (fn, thisArg) {
-	  return function () {
-	    var args = new Array(arguments.length);
-	    for (var i = 0; i < args.length; i++) {
-	      args[i] = arguments[i];
-	    }
-	    return fn.apply(thisArg, args);
-	  };
-	}
-
 	// Provide aliases for supported request methods
-	utils.forEach(['delete', 'get', 'head'], function (method) {
-	  Axios.prototype[method] = function (url, config) {
+	utils.forEach(['delete', 'get', 'head'], function forEachMethodNoData(method) {
+	  /*eslint func-names:0*/
+	  Axios.prototype[method] = function(url, config) {
 	    return this.request(utils.merge(config || {}, {
 	      method: method,
 	      url: url
@@ -25668,8 +25658,9 @@
 	  axios[method] = bind(Axios.prototype[method], defaultInstance);
 	});
 
-	utils.forEach(['post', 'put', 'patch'], function (method) {
-	  Axios.prototype[method] = function (url, data, config) {
+	utils.forEach(['post', 'put', 'patch'], function forEachMethodWithData(method) {
+	  /*eslint func-names:0*/
+	  Axios.prototype[method] = function(url, data, config) {
 	    return this.request(utils.merge(config || {}, {
 	      method: method,
 	      url: url,
@@ -25694,8 +25685,8 @@
 	};
 
 	module.exports = {
-	  transformRequest: [function (data, headers) {
-	    if(utils.isFormData(data)) {
+	  transformRequest: [function transformResponseJSON(data, headers) {
+	    if (utils.isFormData(data)) {
 	      return data;
 	    }
 	    if (utils.isArrayBuffer(data)) {
@@ -25707,7 +25698,7 @@
 	    if (utils.isObject(data) && !utils.isFile(data) && !utils.isBlob(data)) {
 	      // Set application/json if no Content-Type has been specified
 	      if (!utils.isUndefined(headers)) {
-	        utils.forEach(headers, function (val, key) {
+	        utils.forEach(headers, function processContentTypeHeader(val, key) {
 	          if (key.toLowerCase() === 'content-type') {
 	            headers['Content-Type'] = val;
 	          }
@@ -25722,7 +25713,8 @@
 	    return data;
 	  }],
 
-	  transformResponse: [function (data) {
+	  transformResponse: [function transformResponseJSON(data) {
+	    /*eslint no-param-reassign:0*/
 	    if (typeof data === 'string') {
 	      data = data.replace(PROTECTION_PREFIX, '');
 	      try {
@@ -25797,11 +25789,13 @@
 	 * @returns {boolean} True if value is a view on an ArrayBuffer, otherwise false
 	 */
 	function isArrayBufferView(val) {
+	  var result;
 	  if ((typeof ArrayBuffer !== 'undefined') && (ArrayBuffer.isView)) {
-	    return ArrayBuffer.isView(val);
+	    result = ArrayBuffer.isView(val);
 	  } else {
-	    return (val) && (val.buffer) && (val.buffer instanceof ArrayBuffer);
+	    result = (val) && (val.buffer) && (val.buffer instanceof ArrayBuffer);
 	  }
+	  return result;
 	}
 
 	/**
@@ -25925,17 +25919,17 @@
 
 	  // Force an array if not already something iterable
 	  if (typeof obj !== 'object' && !isArray(obj)) {
+	    /*eslint no-param-reassign:0*/
 	    obj = [obj];
 	  }
 
-	  // Iterate over array values
 	  if (isArray(obj)) {
+	    // Iterate over array values
 	    for (var i = 0, l = obj.length; i < l; i++) {
 	      fn.call(null, obj[i], i, obj);
 	    }
-	  }
-	  // Iterate over object keys
-	  else {
+	  } else {
+	    // Iterate over object keys
 	    for (var key in obj) {
 	      if (obj.hasOwnProperty(key)) {
 	        fn.call(null, obj[key], key, obj);
@@ -25961,11 +25955,13 @@
 	 * @param {Object} obj1 Object to merge
 	 * @returns {Object} Result of all merge properties
 	 */
-	function merge(/*obj1, obj2, obj3, ...*/) {
+	function merge(/* obj1, obj2, obj3, ... */) {
 	  var result = {};
-	  var assignValue = function (val, key) { result[key] = val; };
-	  var length = arguments.length;
-	  for (var i = 0; i < length; i++) {
+	  function assignValue(val, key) {
+	    result[key] = val;
+	  }
+
+	  for (var i = 0, l = arguments.length; i < l; i++) {
 	    forEach(arguments[i], assignValue);
 	  }
 	  return result;
@@ -26004,14 +26000,13 @@
 	 * @returns {Promise} The Promise to be fulfilled
 	 */
 	module.exports = function dispatchRequest(config) {
-	  return new Promise(function (resolve, reject) {
+	  return new Promise(function executor(resolve, reject) {
 	    try {
-	      // For browsers use XHR adapter
 	      if ((typeof XMLHttpRequest !== 'undefined') || (typeof ActiveXObject !== 'undefined')) {
+	        // For browsers use XHR adapter
 	        __webpack_require__(228)(resolve, reject, config);
-	      }
-	      // For node use HTTP adapter
-	      else if (typeof process !== 'undefined') {
+	      } else if (typeof process !== 'undefined') {
+	        // For node use HTTP adapter
 	        __webpack_require__(228)(resolve, reject, config);
 	      }
 	    } catch (e) {
@@ -26037,7 +26032,7 @@
 	var parseHeaders = __webpack_require__(230);
 	var transformData = __webpack_require__(231);
 	var isURLSameOrigin = __webpack_require__(232);
-	var btoa = window.btoa || __webpack_require__(233)
+	var btoa = window.btoa || __webpack_require__(233);
 
 	module.exports = function xhrAdapter(resolve, reject, config) {
 	  // Transform request data
@@ -26058,13 +26053,13 @@
 	    delete requestHeaders['Content-Type']; // Let the browser set it
 	  }
 
-	  var adapter = (XMLHttpRequest || ActiveXObject);
+	  var Adapter = (XMLHttpRequest || ActiveXObject);
 	  var loadEvent = 'onreadystatechange';
 	  var xDomain = false;
 
 	  // For IE 8/9 CORS support
-	  if(!isURLSameOrigin(config.url) && window.XDomainRequest){
-	    adapter = window.XDomainRequest;
+	  if (!isURLSameOrigin(config.url) && window.XDomainRequest) {
+	    Adapter = window.XDomainRequest;
 	    loadEvent = 'onload';
 	    xDomain = true;
 	  }
@@ -26073,18 +26068,18 @@
 	  if (config.auth) {
 	    var username = config.auth.username || '';
 	    var password = config.auth.password || '';
-	    requestHeaders['Authorization'] = 'Basic: ' + btoa(username + ':' + password);
+	    requestHeaders.Authorization = 'Basic ' + btoa(username + ':' + password);
 	  }
 
 	  // Create the request
-	  var request = new adapter('Microsoft.XMLHTTP');
+	  var request = new Adapter('Microsoft.XMLHTTP');
 	  request.open(config.method.toUpperCase(), buildURL(config.url, config.params, config.paramsSerializer), true);
 
 	  // Set the request timeout in MS
 	  request.timeout = config.timeout;
 
 	  // Listen for ready state
-	  request[loadEvent] = function () {
+	  request[loadEvent] = function handleReadyState() {
 	    if (request && (request.readyState === 4 || xDomain)) {
 	      // Prepare the response
 	      var responseHeaders = xDomain ? null : parseHeaders(request.getAllResponseHeaders());
@@ -26101,7 +26096,7 @@
 	        config: config
 	      };
 	      // Resolve or reject the Promise based on the status
-	      ((request.status >= 200 && request.status < 300) || (request.responseText && xDomain) ?
+	      ((request.status >= 200 && request.status < 300) || (xDomain && request.responseText) ?
 	        resolve :
 	        reject)(response);
 
@@ -26117,7 +26112,7 @@
 	    var cookies = __webpack_require__(234);
 
 	    // Add xsrf header
-	    var xsrfValue = isURLSameOrigin(config.url) ?
+	    var xsrfValue =  config.withCredentials || isURLSameOrigin(config.url) ?
 	        cookies.read(config.xsrfCookieName || defaults.xsrfCookieName) :
 	        undefined;
 
@@ -26127,17 +26122,17 @@
 	  }
 
 	  // Add headers to the request
-	  if(!xDomain)
-	    utils.forEach(requestHeaders, function (val, key) {
-	      // Remove Content-Type if data is undefined
+	  if (!xDomain) {
+	    utils.forEach(requestHeaders, function setRequestHeader(val, key) {
 	      if (!data && key.toLowerCase() === 'content-type') {
+	        // Remove Content-Type if data is undefined
 	        delete requestHeaders[key];
-	      }
-	      // Otherwise add header to the request
-	      else {
+	      } else {
+	        // Otherwise add header to the request
 	        request.setRequestHeader(key, val);
 	      }
 	    });
+	  }
 
 	  // Add withCredentials to request if needed
 	  if (config.withCredentials) {
@@ -26191,6 +26186,7 @@
 	 * @returns {string} The formatted url
 	 */
 	module.exports = function buildURL(url, params, paramsSerializer) {
+	  /*eslint no-param-reassign:0*/
 	  if (!params) {
 	    return url;
 	  }
@@ -26198,11 +26194,10 @@
 	  var serializedParams;
 	  if (paramsSerializer) {
 	    serializedParams = paramsSerializer(params);
-	  }
-	  else {
+	  } else {
 	    var parts = [];
 
-	    utils.forEach(params, function (val, key) {
+	    utils.forEach(params, function serialize(val, key) {
 	      if (val === null || typeof val === 'undefined') {
 	        return;
 	      }
@@ -26215,11 +26210,10 @@
 	        val = [val];
 	      }
 
-	      utils.forEach(val, function (v) {
+	      utils.forEach(val, function parseValue(v) {
 	        if (utils.isDate(v)) {
 	          v = v.toISOString();
-	        }
-	        else if (utils.isObject(v)) {
+	        } else if (utils.isObject(v)) {
 	          v = JSON.stringify(v);
 	        }
 	        parts.push(encode(key) + '=' + encode(v));
@@ -26260,11 +26254,14 @@
 	 * @returns {Object} Headers parsed into an object
 	 */
 	module.exports = function parseHeaders(headers) {
-	  var parsed = {}, key, val, i;
+	  var parsed = {};
+	  var key;
+	  var val;
+	  var i;
 
 	  if (!headers) { return parsed; }
 
-	  utils.forEach(headers.split('\n'), function(line) {
+	  utils.forEach(headers.split('\n'), function parser(line) {
 	    i = line.indexOf(':');
 	    key = utils.trim(line.substr(0, i)).toLowerCase();
 	    val = utils.trim(line.substr(i + 1));
@@ -26295,7 +26292,8 @@
 	 * @returns {*} The resulting transformed data
 	 */
 	module.exports = function transformData(data, headers, fns) {
-	  utils.forEach(fns, function (fn) {
+	  /*eslint no-param-reassign:0*/
+	  utils.forEach(fns, function transform(fn) {
 	    data = fn(data, headers);
 	  });
 
@@ -26316,7 +26314,7 @@
 
 	  // Standard browser envs have full support of the APIs needed to test
 	  // whether the request URL is of the same origin as current location.
-	  (function () {
+	  (function standardBrowserEnv() {
 	    var msie = /(msie|trident)/i.test(navigator.userAgent);
 	    var urlParsingNode = document.createElement('a');
 	    var originURL;
@@ -26369,7 +26367,7 @@
 	  })() :
 
 	  // Non standard browser envs (web workers, react-native) lack needed support.
-	  (function () {
+	  (function nonStandardBrowserEnv() {
 	    return function isURLSameOrigin() {
 	      return true;
 	    };
@@ -26391,13 +26389,15 @@
 	  this.message = message;
 	}
 	InvalidCharacterError.prototype = new Error;
+	InvalidCharacterError.prototype.code = 5;
 	InvalidCharacterError.prototype.name = 'InvalidCharacterError';
 
-	function btoa (input) {
+	function btoa(input) {
 	  var str = String(input);
+	  var output = '';
 	  for (
 	    // initialize result and counter
-	    var block, charCode, idx = 0, map = chars, output = '';
+	    var block, charCode, idx = 0, map = chars;
 	    // if the next str index does not exist:
 	    //   change the mapping table to "="
 	    //   check if d has no fractional digits
@@ -26405,16 +26405,16 @@
 	    // "8 - idx % 1 * 8" generates the sequence 2, 4, 6, 8
 	    output += map.charAt(63 & block >> 8 - idx % 1 * 8)
 	  ) {
-	    charCode = str.charCodeAt(idx += 3/4);
+	    charCode = str.charCodeAt(idx += 3 / 4);
 	    if (charCode > 0xFF) {
-	      throw new InvalidCharacterError('\'btoa\' failed: The string to be encoded contains characters outside of the Latin1 range.');
+	      throw new InvalidCharacterError('INVALID_CHARACTER_ERR: DOM Exception 5');
 	    }
 	    block = block << 8 | charCode;
 	  }
 	  return output;
-	};
+	}
 
-	module.exports = btoa
+	module.exports = btoa;
 
 
 /***/ },
@@ -26429,7 +26429,7 @@
 	  utils.isStandardBrowserEnv() ?
 
 	  // Standard browser envs support document.cookie
-	  (function () {
+	  (function standardBrowserEnv() {
 	    return {
 	      write: function write(name, value, expires, path, domain, secure) {
 	        var cookie = [];
@@ -26466,7 +26466,7 @@
 	  })() :
 
 	  // Non standard browser env (web workers, react-native) lack needed support.
-	  (function () {
+	  (function nonStandardBrowserEnv() {
 	    return {
 	      write: function write() {},
 	      read: function read() { return null; },
@@ -26496,7 +26496,7 @@
 	 *
 	 * @return {Number} An ID used to remove interceptor later
 	 */
-	InterceptorManager.prototype.use = function (fulfilled, rejected) {
+	InterceptorManager.prototype.use = function use(fulfilled, rejected) {
 	  this.handlers.push({
 	    fulfilled: fulfilled,
 	    rejected: rejected
@@ -26509,7 +26509,7 @@
 	 *
 	 * @param {Number} id The ID that was returned by `use`
 	 */
-	InterceptorManager.prototype.eject = function (id) {
+	InterceptorManager.prototype.eject = function eject(id) {
 	  if (this.handlers[id]) {
 	    this.handlers[id] = null;
 	  }
@@ -26519,12 +26519,12 @@
 	 * Iterate over all the registered interceptors
 	 *
 	 * This method is particularly useful for skipping over any
-	 * interceptors that may have become `null` calling `remove`.
+	 * interceptors that may have become `null` calling `eject`.
 	 *
 	 * @param {Function} fn The function to call for each interceptor
 	 */
-	InterceptorManager.prototype.forEach = function (fn) {
-	  utils.forEach(this.handlers, function (h) {
+	InterceptorManager.prototype.forEach = function forEach(fn) {
+	  utils.forEach(this.handlers, function forEachHandler(h) {
 	    if (h !== null) {
 	      fn(h);
 	    }
@@ -26578,6 +26578,23 @@
 
 	'use strict';
 
+	module.exports = function bind(fn, thisArg) {
+	  return function wrap() {
+	    var args = new Array(arguments.length);
+	    for (var i = 0; i < args.length; i++) {
+	      args[i] = arguments[i];
+	    }
+	    return fn.apply(thisArg, args);
+	  };
+	};
+
+
+/***/ },
+/* 239 */
+/***/ function(module, exports) {
+
+	'use strict';
+
 	/**
 	 * Syntactic sugar for invoking a function and expanding an array for arguments.
 	 *
@@ -26599,7 +26616,7 @@
 	 * @returns {Function}
 	 */
 	module.exports = function spread(callback) {
-	  return function (arr) {
+	  return function wrap(arr) {
 	    return callback.apply(null, arr);
 	  };
 	};

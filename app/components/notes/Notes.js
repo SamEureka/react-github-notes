@@ -4,9 +4,9 @@ var AddNote = require('./AddNote');
 
 var Notes = React.createClass({
 	propTypes: {
-		notes: React.PropTypes.array.isRequired,
 		username: React.PropTypes.string.isRequired,
-		addNote: React.PropTypes.func.isRequired 
+		notes: React.PropTypes.array.isRequired,
+		addNote: React.PropTypes.func.isRequired,
 	},
 	render: function(){
 		return (
